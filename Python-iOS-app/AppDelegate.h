@@ -16,4 +16,7 @@
 
 @property (strong, nonatomic) ViewController *viewController;
 
++ (NSString *)documentsPath;
++ (BOOL)copyFileIfNotExist:(NSString *)srcPath target:(NSString *)targetPath;
+
 @end

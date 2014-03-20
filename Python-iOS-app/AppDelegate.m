@@ -13,10 +13,36 @@
 
 @implementation AppDelegate
 
++ (NSString *)documentsPath {
+    return [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory,NSUserDomainMask, YES) lastObject];
+}
+
++ (BOOL)copyFileIfNotExist:(NSString *)srcPath target:(NSString *)targetPath {
+    BOOL succ = NO;
+	// First, test for existence - we don't want to wipe out a user's DB
+	NSFileManager *fileManager = [NSFileManager defaultManager];
+	
+	BOOL dbexits = [fileManager fileExistsAtPath:targetPath];
+	if (!dbexits) {
+		NSError *error;
+		succ = [fileManager copyItemAtPath:srcPath toPath:targetPath error:&error];
+		if (!succ) {
+			NSAssert1(0, @"Failed to copy file with message '%@'.\n", [error localizedDescription]);
+		}
+	} else {
+        succ = YES;
+    }
+    return succ;
+}
+
 - (void)dealloc
 {
     [_window release];
     [_viewController release];
+    
+    /* terminate Python environment */
+    Py_Finalize();
+    
     [super dealloc];
 }
 
@@ -35,13 +61,20 @@
     //init python
     //get python lib path and set this path as python home directory
     NSString* fullpath = [[NSBundle mainBundle] pathForResource:@"python" ofType:nil inDirectory:nil];
-    char home[1024];
-    strcpy(home, [fullpath UTF8String]);
+    Py_SetPythonHome( (char *) [fullpath UTF8String] );
     
-    Py_SetPythonHome(home);
     Py_Initialize();
+    if (!Py_IsInitialized()) {
+        printf("Initialize failed!\n");
+        return NO;
+    }
     
-    PyRun_SimpleString("print 'hello'");//say hello see debug output :)    
+    PyRun_SimpleString("import sys");
+    // sys.path.append('./Documents')
+    NSString *env = [NSString stringWithFormat:@"sys.path.append('%@')", [AppDelegate documentsPath]];
+    PyRun_SimpleString([env UTF8String]);
+    
+    PyRun_SimpleString("print 'hello'");//say hello see debug output :)
     
     return YES;
 }
